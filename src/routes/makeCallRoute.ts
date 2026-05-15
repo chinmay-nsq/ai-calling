@@ -63,6 +63,7 @@ export const makeCallRoute = async (event: any) => {
     const agentClient = getAgentDispatchClient();
     await agentClient.createDispatch(roomName, "recruiter-agent", {
       metadata: JSON.stringify({
+        candidateId,
         candidatePhone,
         candidateName,
         jobRole,
