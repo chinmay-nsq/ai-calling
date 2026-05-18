@@ -9,13 +9,13 @@ export const handler = async (event: any) => {
   await connectDB();
 
   switch (path) {
-    case "/make-call":
+    case "/prod/make-call":
       return await makeCallRoute(event);
 
-    case "/webhook/agent-transcript":
+    case "/prod/webhook/agent-transcript":
       return await getCallDetailsRoute(event);
 
-    case "/webhook/call-failed":
+    case "/prod/webhook/call-failed":
       return await callFailedRoute(event);
 
     default:
