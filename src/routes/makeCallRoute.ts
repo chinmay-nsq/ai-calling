@@ -39,22 +39,36 @@ export const makeCallRoute = async (event: any) => {
   try {
     await connectDB();
 
-    // Save call record before dialing
-    await CallModel.create({
-      candidateId,
-      candidateName,
-      candidatePhone,
-      jobRole,
-      jobDescription,
-      companyName,
-      aboutCompany: aboutCompany ?? "",
-      room_name: roomName,
-      scheduledTime: scheduledTime ? new Date(scheduledTime) : new Date(),
-      status: "scheduled",
-      maxRetryCount: 3,
-      currentTry: 1,
-    });
+    const existingCall = await CallModel.findOne({ candidateId });
 
+    if (existingCall) {
+      // Retry attempt — update existing doc with new room
+      await CallModel.updateOne(
+        { candidateId },
+        {
+          room_name: roomName,
+          status: "scheduled",
+          scheduledTime: new Date(),
+          // Don't touch currentTry here — callFailedRoute already incremented it
+        },
+      );
+    } else {
+      // Save call record before dialing
+      await CallModel.create({
+        candidateId,
+        candidateName,
+        candidatePhone,
+        jobRole,
+        jobDescription,
+        companyName,
+        aboutCompany: aboutCompany ?? "",
+        room_name: roomName,
+        scheduledTime: scheduledTime ? new Date(scheduledTime) : new Date(),
+        status: "scheduled",
+        maxRetryCount: 3,
+        currentTry: 1,
+      });
+    }
     // Create LiveKit room
     const roomClient = getRoomClient();
     await roomClient.createRoom({ name: roomName });
@@ -74,10 +88,7 @@ export const makeCallRoute = async (event: any) => {
     });
 
     // Mark as in_progress once dispatched
-    await CallModel.updateOne(
-      { room_name: roomName },
-      { status: "in_progress" },
-    );
+    await CallModel.updateOne({ candidateId }, { status: "in_progress" });
   } catch (err: any) {
     console.error("Failed to initiate call:", err);
     return {

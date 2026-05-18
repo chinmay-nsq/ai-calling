@@ -4,3 +4,7 @@ build
 node_modules/
 env
 .env
+.zip
+zip
+ai-calling.zip
+/ai-calling.zip

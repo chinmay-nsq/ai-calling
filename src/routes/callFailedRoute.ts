@@ -13,6 +13,7 @@ export const callFailedRoute = async (event: any) => {
   }
 
   let body: {
+    candidateId: string;
     room_name: string;
     failure_reason: string;
     call_status: string;
@@ -29,9 +30,16 @@ export const callFailedRoute = async (event: any) => {
     };
   }
 
-  const { room_name, failure_reason, call_status, sip_code, sip_status } = body;
+  const {
+    candidateId,
+    room_name,
+    failure_reason,
+    call_status,
+    sip_code,
+    sip_status,
+  } = body;
 
-  if (!room_name || !failure_reason || !call_status) {
+  if (!candidateId || !room_name || !failure_reason || !call_status) {
     return {
       statusCode: 400,
       body: JSON.stringify({ error: "Missing required fields" }),
@@ -40,7 +48,7 @@ export const callFailedRoute = async (event: any) => {
 
   try {
     await connectDB();
-    const callDoc = await CallModel.findOne({ room_name });
+    const callDoc = await CallModel.findOne({ candidateId });
     if (!callDoc) {
       return {
         statusCode: 404,
@@ -55,7 +63,7 @@ export const callFailedRoute = async (event: any) => {
     const finalStatus = exhausted ? "exhausted" : call_status;
 
     await CallModel.updateOne(
-      { room_name },
+      { candidateId },
       {
         status: finalStatus,
         failure_reason,

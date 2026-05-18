@@ -30,7 +30,7 @@ export const scheduleRetry = async ({
 
   // Fake API Gateway event
   const lambdaPayload = {
-    rawPath: "/make-call",
+    rawPath: "/prod/make-call",
     body: JSON.stringify(payload),
   };
 
