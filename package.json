@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx src/local.ts",
-    "build": "esbuild src/handler.ts --bundle --platform=node --target=node22 --outfile=dist/handler.js"
+    "build": "esbuild src/handler.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/handler.js"
   },
   "keywords": [],
   "author": "",

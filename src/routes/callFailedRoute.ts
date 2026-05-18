@@ -1,6 +1,7 @@
 // routes/callFailedRoute.ts
 import { connectDB } from "../config/dbConfig.js";
 import { CallModel } from "../schemas/CallModel.js";
+import { scheduleRetry } from "../service/scheduleRetryCall.js";
 
 export const callFailedRoute = async (event: any) => {
   const secret = event.headers?.["x-agent-secret"];
@@ -63,6 +64,23 @@ export const callFailedRoute = async (event: any) => {
         currentTry: newCurrentTry,
       },
     );
+    // ADD HERE
+
+    if (retriable && !exhausted) {
+      await scheduleRetry({
+        roomName: room_name,
+        retryAttempt: newCurrentTry,
+        payload: {
+          candidateId: callDoc.candidateId,
+          candidateName: callDoc.candidateName,
+          candidatePhone: callDoc.candidatePhone,
+          jobRole: callDoc.jobRole,
+          jobDescription: callDoc.jobDescription,
+          companyName: callDoc.companyName,
+          aboutCompany: callDoc.aboutCompany,
+        },
+      });
+    }
 
     console.log(
       `Call failure saved: ${room_name} → ${finalStatus} (${failure_reason}) [try ${newCurrentTry}/${callDoc.maxRetryCount}]`,

@@ -5,7 +5,7 @@ import { callFailedRoute } from "./routes/callFailedRoute.js";
 
 export const handler = async (event: any) => {
   const path = event.rawPath || event.path;
-
+  console.log("EVENT:", JSON.stringify(event, null, 2));
   await connectDB();
 
   switch (path) {
