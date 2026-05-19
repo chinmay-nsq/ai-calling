@@ -1,6 +1,10 @@
 import { connectDB } from "../config/dbConfig";
 import { CallModel } from "../schemas/CallModel";
 import { analyzeTranscriptService } from "../service/analyzeTranscript";
+import { isWithinCallingHours, scheduleRetry } from "../service/scheduleRetryCall.js";
+import {
+  getTimezoneFromPhone,
+} from "../service/getTimezoneFromPhone.js";
 
 export const getCallDetailsRoute = async (event: any) => {
   // Validate secret
@@ -72,8 +76,46 @@ export const getCallDetailsRoute = async (event: any) => {
 
     // If callback requested, update scheduledTime and increment currentTry
     if (callOutcome.asked_call_back && callOutcome.call_back_time) {
-      updatePayload.scheduledTime = callOutcome.call_back_time;
-      updatePayload.currentTry = callDoc.currentTry + 1;
+      const fireAt = new Date(callOutcome.call_back_time);
+      const timezone = getTimezoneFromPhone(callDoc.candidatePhone);
+
+      // Validate callback time is within calling hours
+      if (!isWithinCallingHours(fireAt, timezone)) {
+        // Don't fail the request — just log and skip scheduling
+        // Agent should have enforced this, but safety net here
+        console.warn(
+          `Callback time ${fireAt.toISOString()} is outside calling hours for ${timezone} — skipping schedule`,
+        );
+      } else {
+        const delayMs = fireAt.getTime() - Date.now();
+
+        if (delayMs > 0) {
+          await scheduleRetry({
+            roomName: room_name,
+            retryAttempt: callDoc.currentTry + 1,
+            delayMs,
+            payload: {
+              candidateId: callDoc.candidateId,
+              candidateName: callDoc.candidateName,
+              candidatePhone: callDoc.candidatePhone,
+              jobRole: callDoc.jobRole,
+              jobDescription: callDoc.jobDescription,
+              companyName: callDoc.companyName,
+              aboutCompany: callDoc.aboutCompany,
+              // No scheduledTime — fires immediately when scheduler triggers
+            },
+          });
+
+          console.log(
+            `Callback scheduled for candidate ${candidate_id} at ${fireAt.toLocaleString("en-GB", { timeZone: timezone })} (${timezone})`,
+          );
+
+          updatePayload.scheduledTime = fireAt;
+          updatePayload.currentTry = callDoc.currentTry + 1;
+        } else {
+          console.warn(`Callback time is in the past — skipping schedule`);
+        }
+      }
     }
 
     await CallModel.updateOne(

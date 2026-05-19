@@ -1,7 +1,12 @@
 // routes/callFailedRoute.ts
 import { connectDB } from "../config/dbConfig.js";
 import { CallModel } from "../schemas/CallModel.js";
-import { scheduleRetry } from "../service/scheduleRetryCall.js";
+import { getTimezoneFromPhone } from "../service/getTimezoneFromPhone.js";
+import {
+  getRetryDelayMs,
+  isWithinCallingHours,
+  scheduleRetry,
+} from "../service/scheduleRetryCall.js";
 
 export const callFailedRoute = async (event: any) => {
   const secret = event.headers?.["x-agent-secret"];
@@ -75,9 +80,37 @@ export const callFailedRoute = async (event: any) => {
     // ADD HERE
 
     if (retriable && !exhausted) {
+      const delayMs = getRetryDelayMs(callDoc.currentTry, "testing");
+      let fireAt = new Date(Date.now() + delayMs);
+
+      const timezone = getTimezoneFromPhone(callDoc.candidatePhone);
+
+      // If retry would fire outside calling hours, push to next day 10 AM
+      if (!isWithinCallingHours(fireAt, timezone)) {
+        const nextDay = new Date(fireAt);
+        nextDay.setDate(nextDay.getDate() + 1);
+
+        // Set to 10 AM in candidate's timezone
+        const tenAM = new Intl.DateTimeFormat("en-CA", {
+          timeZone: timezone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(nextDay);
+
+        fireAt = new Date(`${tenAM}T10:00:00`);
+        // Convert back to UTC
+        fireAt = new Date(
+          new Date(`${tenAM}T10:00:00`).toLocaleString("en-US", {
+            timeZone: timezone,
+          }),
+        );
+      }
+
       await scheduleRetry({
         roomName: room_name,
         retryAttempt: newCurrentTry,
+        delayMs: fireAt.getTime() - Date.now(), // recalculated after hours check
         payload: {
           candidateId: callDoc.candidateId,
           candidateName: callDoc.candidateName,
