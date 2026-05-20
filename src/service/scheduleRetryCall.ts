@@ -38,7 +38,7 @@ export const scheduleRetry = async ({
 
   const command = new CreateScheduleCommand({
     Name: scheduleName,
-
+    GroupName: "default",
     ScheduleExpression: `at(${formattedDate})`,
 
     FlexibleTimeWindow: {
